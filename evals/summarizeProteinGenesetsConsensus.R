@@ -14,7 +14,7 @@ sourceRepoFile(crcRepo, "evals/getDataFuncs.R")
 code3 <- getPermlink(crcRepo, "evals/getDataFuncs.R")
 
 ## THIS SCRIPT
-thisCode <- getPermlink(crcRepo, "evals/summarizeGenesetsConsensus.R")
+thisCode <- getPermlink(crcRepo, "evals/summarizeProteinGenesetsConsensus.R")
 resFold <- synGet("syn2476109")
 
 ## QUERY FOR OUR RESULTS
@@ -22,9 +22,8 @@ resQ <- synapseQuery("SELECT id, name, group, dataset, method, stat, evalDate FR
 gsQ <- resQ[ resQ$file.method == "gsa", ]
 
 ## gse4183 ONLY HAS FOUR SUBTYPES CALLS
-gsQ <- gsQ[ gsQ$file.dataset != "gse4183", ]
+gsQ <- gsQ[ grepl("Prot", gsQ$file.name, ignore.case=TRUE), ]
 ## amc_ajccii NO LONGER INCLUDED
-gsQ <- gsQ[ gsQ$file.dataset != "amc_ajccii", ]
 gp <- "cms4"
 
 ## COLOR PALETTE
@@ -35,17 +34,9 @@ gsaDat <- lapply(as.list(gsQ$file.id), function(x){
   a <- synGet(x)
   read.delim(getFileLocation(a), as.is=T, header=T, row.names=1)
 })
-names(gsaDat) <- gsQ$file.dataset
+gsaDat <- gsaDat[[1]]
 
-
-## PLOTS PER GROUP
-## FISHER META ANALYSIS P-VALUE
-# 1 - pchisq(-2 * sum(log(pvals)),2 * length(pvals))
-chsq <- -2*Reduce("+", lapply(gsaDat, log))
-pval <- apply(chsq, c(1,2), function(x){
-  1-pchisq(x, 2*length(gsaDat))
-})
-x <- -1*log10(pval)
+x <- -1*log10(gsaDat)
 x <- apply(x, c(1,2), function(y){
   min(y, 20)
 })
@@ -68,21 +59,21 @@ synPlot <- synStore(File(path=plotPath, parentId="syn2476110"),
                                         list(entity=resFold, wasExecuted=F))))
 
 
-# load("~/Downloads/gg.RData")
-# res <- lapply(as.list(names(gg)), function(y){
-#   
-#   x <- gg[[y]]
-#   plotDFnew <- plotDF[ plotDF$geneset %in% x, ]
-#   pnew <- ggplot(data=plotDFnew, aes(x=subtype, y=count, fill=subtype)) +
-#     geom_bar(stat="identity") + xlab("") + ylab("-log10(fisher meta analysis pval)") + ggtitle(y) +
-#     scale_fill_manual(values=cbPalette) + 
-#     facet_wrap(facets=(~ geneset), ncol=3)
-#   return(pnew)
-# })
-# names(res) <- names(gg)
-# 
-# for(i in names(res)){
-#   png(paste("~/genesets-", i, ".png", sep=""), width=900, height=900)
-#   show(res[[i]])
-#   dev.off()
-# }
+load("~/Downloads/gg.RData")
+res <- lapply(as.list(names(gg)), function(y){
+  
+  x <- gg[[y]]
+  plotDFnew <- plotDF[ plotDF$geneset %in% x, ]
+  pnew <- ggplot(data=plotDFnew, aes(x=subtype, y=count, fill=subtype)) +
+    geom_bar(stat="identity") + xlab("") + ylab("-log10(fisher meta analysis pval)") + ggtitle(y) +
+    scale_fill_manual(values=cbPalette) + 
+    facet_wrap(facets=(~ geneset), ncol=3)
+  return(pnew)
+})
+names(res) <- names(gg)
+
+for(i in names(res)){
+  png(paste("~/protGenesets-", i, ".png", sep=""), width=900, height=900)
+  show(res[[i]])
+  dev.off()
+}
